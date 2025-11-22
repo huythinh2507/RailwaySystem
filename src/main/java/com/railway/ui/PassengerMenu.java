@@ -1,0 +1,338 @@
+package com.railway.ui;
+
+import com.railway.model.Feedback;
+import com.railway.model.Ticket;
+import com.railway.model.Train;
+import com.railway.model.User;
+import com.railway.service.BookingService;
+import com.railway.service.FeedbackService;
+import com.railway.service.TrainService;
+
+import java.math.BigDecimal;
+import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.util.List;
+import java.util.Scanner;
+
+public class PassengerMenu {
+    private final Scanner scanner;
+    private final User currentUser;
+    private final BookingService bookingService;
+    private final TrainService trainService;
+    private final FeedbackService feedbackService;
+
+    public PassengerMenu(Scanner scanner, User currentUser) {
+        this.scanner = scanner;
+        this.currentUser = currentUser;
+        this.bookingService = new BookingService();
+        this.trainService = new TrainService();
+        this.feedbackService = new FeedbackService();
+    }
+
+    public void display() {
+        while (true) {
+            System.out.println("\n╔════════════════════════════════════════╗");
+            System.out.println("║      PASSENGER MENU                    ║");
+            System.out.println("╠════════════════════════════════════════╣");
+            System.out.println("║ Welcome, " + String.format("%-30s", currentUser.getName()) + "║");
+            System.out.println("╠════════════════════════════════════════╣");
+            System.out.println("║ 1. Search Trains                       ║");
+            System.out.println("║ 2. Book Ticket                         ║");
+            System.out.println("║ 3. View My Bookings                    ║");
+            System.out.println("║ 4. Cancel Ticket                       ║");
+            System.out.println("║ 5. Check Seat Availability             ║");
+            System.out.println("║ 6. Submit Feedback                     ║");
+            System.out.println("║ 7. View My Feedback                    ║");
+            System.out.println("║ 8. Logout                              ║");
+            System.out.println("╚════════════════════════════════════════╝");
+            System.out.print("Enter your choice: ");
+
+            int choice = getIntInput();
+            scanner.nextLine();
+
+            try {
+                switch (choice) {
+                    case 1:
+                        searchTrains();
+                        break;
+                    case 2:
+                        bookTicket();
+                        break;
+                    case 3:
+                        viewMyBookings();
+                        break;
+                    case 4:
+                        cancelTicket();
+                        break;
+                    case 5:
+                        checkSeatAvailability();
+                        break;
+                    case 6:
+                        submitFeedback();
+                        break;
+                    case 7:
+                        viewMyFeedback();
+                        break;
+                    case 8:
+                        System.out.println("Logging out...");
+                        return;
+                    default:
+                        System.out.println("Invalid choice! Please try again.");
+                }
+            } catch (SQLException e) {
+                System.err.println("Database error: " + e.getMessage());
+            } catch (Exception e) {
+                System.err.println("Error: " + e.getMessage());
+            }
+        }
+    }
+
+    private void searchTrains() throws SQLException {
+        System.out.println("\n=== SEARCH TRAINS ===");
+        System.out.print("Enter source (or press Enter to skip): ");
+        String source = scanner.nextLine().trim();
+        if (source.isEmpty()) source = null;
+
+        System.out.print("Enter destination (or press Enter to skip): ");
+        String destination = scanner.nextLine().trim();
+        if (destination.isEmpty()) destination = null;
+
+        LocalDate date = null;
+        System.out.print("Enter date (YYYY-MM-DD) (or press Enter to skip): ");
+        String dateStr = scanner.nextLine().trim();
+        if (!dateStr.isEmpty()) {
+            try {
+                date = LocalDate.parse(dateStr);
+            } catch (DateTimeParseException e) {
+                System.out.println("Invalid date format! Searching without date filter.");
+            }
+        }
+
+        List<Train> trains = trainService.searchTrains(source, destination, date);
+
+        if (trains.isEmpty()) {
+            System.out.println("No trains found matching your criteria.");
+        } else {
+            System.out.println("\n" + "=".repeat(120));
+            System.out.printf("%-12s %-25s %-20s %-20s %-12s %-10s %-10s%n",
+                    "Train No", "Train Name", "Source", "Destination", "Date", "Cost", "Seats");
+            System.out.println("=".repeat(120));
+
+            for (Train train : trains) {
+                int availableSeats = trainService.checkSeatAvailability(train.getTrainNumber());
+                System.out.printf("%-12s %-25s %-20s %-20s %-12s ₹%-9.2f %-10d%n",
+                        train.getTrainNumber(),
+                        train.getTrainName(),
+                        train.getSource(),
+                        train.getDestination(),
+                        train.getDate(),
+                        train.getCost(),
+                        availableSeats);
+            }
+            System.out.println("=".repeat(120));
+        }
+    }
+
+    private void bookTicket() throws SQLException {
+        System.out.println("\n=== BOOK TICKET ===");
+        System.out.print("Enter Train Number: ");
+        String trainNumber = scanner.nextLine().trim();
+
+        Train train = trainService.getTrainDetails(trainNumber);
+        if (train == null) {
+            System.out.println("Train not found!");
+            return;
+        }
+
+        int availableSeats = trainService.checkSeatAvailability(trainNumber);
+        System.out.println("\nTrain Details:");
+        System.out.println("Train Name: " + train.getTrainName());
+        System.out.println("Source: " + train.getSource());
+        System.out.println("Destination: " + train.getDestination());
+        System.out.println("Date: " + train.getDate());
+        System.out.println("Cost: ₹" + train.getCost());
+        System.out.println("Available Seats: " + availableSeats);
+
+        if (availableSeats <= 0) {
+            System.out.println("Sorry, no seats available!");
+            return;
+        }
+
+        System.out.print("\nEnter Passenger Name: ");
+        String passengerName = scanner.nextLine().trim();
+
+        System.out.print("Enter Age: ");
+        int age = getIntInput();
+        scanner.nextLine();
+
+        System.out.print("Enter Gender (M/F): ");
+        String gender = scanner.nextLine().trim().toUpperCase();
+
+        System.out.print("Enter Boarding Station: ");
+        String source = scanner.nextLine().trim();
+
+        System.out.print("Enter Destination Station: ");
+        String destination = scanner.nextLine().trim();
+
+        try {
+            String pnr = bookingService.bookTicket(currentUser.getUsername(), passengerName,
+                    age, gender, trainNumber, source, destination);
+
+            System.out.println("\n" + "=".repeat(50));
+            System.out.println("✓ TICKET BOOKED SUCCESSFULLY!");
+            System.out.println("=".repeat(50));
+            System.out.println("PNR: " + pnr);
+            System.out.println("Passenger Name: " + passengerName);
+            System.out.println("Train: " + train.getTrainName() + " (" + trainNumber + ")");
+            System.out.println("Date: " + train.getDate());
+            System.out.println("From: " + source + " To: " + destination);
+            System.out.println("Amount: ₹" + train.getCost());
+            System.out.println("=".repeat(50));
+            System.out.println("Please save your PNR for future reference.");
+        } catch (Exception e) {
+            System.err.println("Booking failed: " + e.getMessage());
+        }
+    }
+
+    private void viewMyBookings() throws SQLException {
+        System.out.println("\n=== MY BOOKINGS ===");
+        List<Ticket> tickets = bookingService.getUserBookings(currentUser.getUsername());
+
+        if (tickets.isEmpty()) {
+            System.out.println("You have no bookings.");
+        } else {
+            System.out.println("\n" + "=".repeat(110));
+            System.out.printf("%-15s %-12s %-12s %-20s %-20s %-10s%n",
+                    "PNR", "Train No", "Date", "Source", "Destination", "Amount");
+            System.out.println("=".repeat(110));
+
+            for (Ticket ticket : tickets) {
+                System.out.printf("%-15s %-12s %-12s %-20s %-20s ₹%-9.2f%n",
+                        ticket.getPnr(),
+                        ticket.getTrainNumber(),
+                        ticket.getDate(),
+                        ticket.getSource(),
+                        ticket.getDestination(),
+                        ticket.getAmount());
+            }
+            System.out.println("=".repeat(110));
+        }
+    }
+
+    private void cancelTicket() throws SQLException {
+        System.out.println("\n=== CANCEL TICKET ===");
+        System.out.print("Enter PNR: ");
+        String pnr = scanner.nextLine().trim();
+
+        Ticket ticket = bookingService.getTicketDetails(pnr);
+        if (ticket == null) {
+            System.out.println("Ticket not found!");
+            return;
+        }
+
+        System.out.println("\nTicket Details:");
+        System.out.println("PNR: " + ticket.getPnr());
+        System.out.println("Train Number: " + ticket.getTrainNumber());
+        System.out.println("Date: " + ticket.getDate());
+        System.out.println("Source: " + ticket.getSource());
+        System.out.println("Destination: " + ticket.getDestination());
+        System.out.println("Amount: ₹" + ticket.getAmount());
+
+        System.out.print("\nAre you sure you want to cancel this ticket? (yes/no): ");
+        String confirm = scanner.nextLine().trim().toLowerCase();
+
+        if (confirm.equals("yes")) {
+            try {
+                boolean success = bookingService.cancelTicket(pnr, currentUser.getUsername());
+                if (success) {
+                    System.out.println("\n✓ Ticket cancelled successfully!");
+                    System.out.println("Refund of ₹" + ticket.getAmount() + " will be processed.");
+                }
+            } catch (Exception e) {
+                System.err.println("Cancellation failed: " + e.getMessage());
+            }
+        } else {
+            System.out.println("Cancellation aborted.");
+        }
+    }
+
+    private void checkSeatAvailability() throws SQLException {
+        System.out.println("\n=== CHECK SEAT AVAILABILITY ===");
+        System.out.print("Enter Train Number: ");
+        String trainNumber = scanner.nextLine().trim();
+
+        try {
+            Train train = trainService.getTrainDetails(trainNumber);
+            if (train == null) {
+                System.out.println("Train not found!");
+                return;
+            }
+
+            int availableSeats = trainService.checkSeatAvailability(trainNumber);
+
+            System.out.println("\nTrain: " + train.getTrainName() + " (" + trainNumber + ")");
+            System.out.println("Route: " + train.getSource() + " → " + train.getDestination());
+            System.out.println("Date: " + train.getDate());
+            System.out.println("Available Seats: " + availableSeats + " / 100");
+            System.out.println("Status: " + (availableSeats > 0 ? "AVAILABLE" : "FULL"));
+        } catch (Exception e) {
+            System.err.println("Error: " + e.getMessage());
+        }
+    }
+
+    private void submitFeedback() throws SQLException {
+        System.out.println("\n=== SUBMIT FEEDBACK ===");
+        System.out.print("Enter Train Number (or press Enter to skip): ");
+        String trainNumber = scanner.nextLine().trim();
+        if (trainNumber.isEmpty()) trainNumber = null;
+
+        System.out.print("Enter Rating (1-5): ");
+        int rating = getIntInput();
+        scanner.nextLine();
+
+        System.out.print("Enter Comments: ");
+        String comments = scanner.nextLine().trim();
+
+        try {
+            boolean success = feedbackService.submitFeedback(currentUser.getUsername(),
+                    trainNumber, rating, comments);
+            if (success) {
+                System.out.println("\n✓ Feedback submitted successfully! Thank you for your feedback.");
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to submit feedback: " + e.getMessage());
+        }
+    }
+
+    private void viewMyFeedback() throws SQLException {
+        System.out.println("\n=== MY FEEDBACK ===");
+        List<Feedback> feedbackList = feedbackService.getUserFeedback(currentUser.getUsername());
+
+        if (feedbackList.isEmpty()) {
+            System.out.println("You haven't submitted any feedback yet.");
+        } else {
+            for (Feedback feedback : feedbackList) {
+                System.out.println("\n" + "-".repeat(80));
+                System.out.println("Feedback ID: " + feedback.getFeedbackId());
+                System.out.println("Train Number: " + (feedback.getTrainNumber() != null ? feedback.getTrainNumber() : "General"));
+                System.out.println("Rating: " + "★".repeat(feedback.getRating()) + "☆".repeat(5 - feedback.getRating()));
+                System.out.println("Comments: " + feedback.getComments());
+                System.out.println("Submitted: " + feedback.getSubmittedDate());
+                System.out.println("Status: " + feedback.getStatus());
+                if (feedback.getAdminResponse() != null) {
+                    System.out.println("Admin Response: " + feedback.getAdminResponse());
+                }
+                System.out.println("-".repeat(80));
+            }
+        }
+    }
+
+    private int getIntInput() {
+        while (!scanner.hasNextInt()) {
+            System.out.print("Invalid input! Please enter a number: ");
+            scanner.next();
+        }
+        return scanner.nextInt();
+    }
+}

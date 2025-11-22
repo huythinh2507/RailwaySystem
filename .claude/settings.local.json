@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(timeout:*)",
+      "Bash(nul)",
+      "Bash(exit 0)",
+      "Bash(curl:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
