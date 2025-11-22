@@ -50,6 +50,7 @@ bin/
 
 # IDE - VSCode
 .vscode/
+.claude/
 
 # IDE - NetBeans
 nbproject/private/
