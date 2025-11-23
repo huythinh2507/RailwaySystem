@@ -31,7 +31,8 @@ public class UserController {
                 request.getCity(),
                 request.getAge(),
                 request.getContact(),
-                request.getGender()
+                request.getGender(),
+                request.getRole() != null ? request.getRole() : "passenger"
             );
 
             boolean success = userService.registerUser(user, request.getPassword());
@@ -39,6 +40,7 @@ public class UserController {
                 response.put("success", true);
                 response.put("message", "User registered successfully");
                 response.put("username", user.getUsername());
+                response.put("role", user.getRole());
                 return ResponseEntity.status(HttpStatus.CREATED).body(response);
             } else {
                 response.put("success", false);
@@ -130,6 +132,7 @@ public class UserController {
         private int age;
         private String contact;
         private String gender;
+        private String role;
 
         public String getUsername() { return username; }
         public void setUsername(String username) { this.username = username; }
@@ -154,6 +157,9 @@ public class UserController {
 
         public String getGender() { return gender; }
         public void setGender(String gender) { this.gender = gender; }
+
+        public String getRole() { return role; }
+        public void setRole(String role) { this.role = role; }
     }
 
     public static class LoginRequest {
