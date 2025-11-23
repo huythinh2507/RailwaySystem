@@ -10,6 +10,7 @@ public class User {
     private Integer age;
     private String contact;
     private String gender;
+    private String role;
 
     public User() {
     }
@@ -23,6 +24,19 @@ public class User {
         this.age = age;
         this.contact = contact;
         this.gender = gender;
+        this.role = "passenger"; // default role
+    }
+
+    public User(String username, String name, String address, String city,
+                Integer age, String contact, String gender, String role) {
+        this.username = username;
+        this.name = name;
+        this.address = address;
+        this.city = city;
+        this.age = age;
+        this.contact = contact;
+        this.gender = gender;
+        this.role = role;
     }
 
     public String getUsername() {
@@ -81,6 +95,14 @@ public class User {
         this.gender = gender;
     }
 
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -103,6 +125,7 @@ public class User {
                 ", age=" + age +
                 ", contact='" + contact + '\'' +
                 ", gender='" + gender + '\'' +
+                ", role='" + role + '\'' +
                 '}';
     }
 }
