@@ -40,7 +40,8 @@ CREATE TABLE [User] (
     City VARCHAR(80),
     Age INT,
     Contact VARCHAR(15),
-    Gender CHAR(1)
+    Gender CHAR(1),
+    Role VARCHAR(20) NOT NULL DEFAULT 'passenger' CHECK (Role IN ('passenger', 'admin'))
 );
 
 -- Create Login table
@@ -86,8 +87,9 @@ CREATE TABLE Ticket (
 
 -- Create Admin table
 CREATE TABLE Admin (
-    AdminID INT PRIMARY KEY NOT NULL,
-    Address VARCHAR(255)
+    Username VARCHAR(50) PRIMARY KEY NOT NULL,
+    AdminID INT UNIQUE NOT NULL,
+    FOREIGN KEY (Username) REFERENCES [User](Username) ON DELETE CASCADE
 );
 
 -- Create Station table
@@ -98,10 +100,10 @@ CREATE TABLE Station (
 
 -- Create Admin_Station table
 CREATE TABLE Admin_Station (
-    AdminID INT NOT NULL,
+    Username VARCHAR(50) NOT NULL,
     StationName VARCHAR(100) NOT NULL,
-    PRIMARY KEY (AdminID, StationName),
-    FOREIGN KEY (AdminID) REFERENCES Admin(AdminID) ON DELETE CASCADE,
+    PRIMARY KEY (Username, StationName),
+    FOREIGN KEY (Username) REFERENCES Admin(Username) ON DELETE CASCADE,
     FOREIGN KEY (StationName) REFERENCES Station(StationName) ON DELETE CASCADE
 );
 
@@ -119,10 +121,10 @@ CREATE TABLE Schedule (
 
 -- Create Admin_Train table
 CREATE TABLE Admin_Train (
-    AdminID INT NOT NULL,
+    Username VARCHAR(50) NOT NULL,
     TrainNumber VARCHAR(10) NOT NULL,
-    PRIMARY KEY (AdminID, TrainNumber),
-    FOREIGN KEY (AdminID) REFERENCES Admin(AdminID) ON DELETE CASCADE,
+    PRIMARY KEY (Username, TrainNumber),
+    FOREIGN KEY (Username) REFERENCES Admin(Username) ON DELETE CASCADE,
     FOREIGN KEY (TrainNumber) REFERENCES Train(TrainNumber) ON DELETE CASCADE
 );
 
@@ -130,21 +132,33 @@ CREATE TABLE Admin_Train (
 -- SEED DATA
 -- ========================================
 
--- Insert sample Users
-INSERT INTO [User] (Username, Name, Address, City, Age, Contact, Gender) VALUES
-('john_doe', 'John Doe', '123 Main St', 'New York', 30, '555-0101', 'M'),
-('jane_smith', 'Jane Smith', '456 Oak Ave', 'Los Angeles', 28, '555-0102', 'F'),
-('bob_wilson', 'Bob Wilson', '789 Pine Rd', 'Chicago', 35, '555-0103', 'M'),
-('alice_brown', 'Alice Brown', '321 Elm St', 'Houston', 32, '555-0104', 'F'),
-('charlie_davis', 'Charlie Davis', '654 Maple Dr', 'Phoenix', 29, '555-0105', 'M');
+-- Insert sample Users (passengers)
+INSERT INTO [User] (Username, Name, Address, City, Age, Contact, Gender, Role) VALUES
+('john_doe', 'John Doe', '123 Main St', 'New York', 30, '555-0101', 'M', 'passenger'),
+('jane_smith', 'Jane Smith', '456 Oak Ave', 'Los Angeles', 28, '555-0102', 'F', 'passenger'),
+('bob_wilson', 'Bob Wilson', '789 Pine Rd', 'Chicago', 35, '555-0103', 'M', 'passenger'),
+('alice_brown', 'Alice Brown', '321 Elm St', 'Houston', 32, '555-0104', 'F', 'passenger'),
+('charlie_davis', 'Charlie Davis', '654 Maple Dr', 'Phoenix', 29, '555-0105', 'M', 'passenger');
 
--- Insert sample Login credentials
+-- Insert admin users
+INSERT INTO [User] (Username, Name, Address, City, Age, Contact, Gender, Role) VALUES
+('admin_ny', 'Admin New York', '100 Admin Plaza', 'New York', 40, '555-1001', 'M', 'admin'),
+('admin_la', 'Admin Los Angeles', '200 Management Ave', 'Los Angeles', 38, '555-1002', 'F', 'admin'),
+('admin_chi', 'Admin Chicago', '300 Executive St', 'Chicago', 42, '555-1003', 'M', 'admin');
+
+-- Insert sample Login credentials (for passengers)
 INSERT INTO Login (Username, Password) VALUES
 ('john_doe', 'password123'),
 ('jane_smith', 'securepass456'),
 ('bob_wilson', 'bobpass789'),
 ('alice_brown', 'alicepass012'),
 ('charlie_davis', 'charliepass345');
+
+-- Insert admin Login credentials
+INSERT INTO Login (Username, Password) VALUES
+('admin_ny', 'admin123'),
+('admin_la', 'admin456'),
+('admin_chi', 'admin789');
 
 -- Insert sample Stations
 INSERT INTO Station (StationName, Address) VALUES
@@ -179,19 +193,19 @@ INSERT INTO Ticket (PNR, TrainNumber, Date, Source, Destination) VALUES
 ('PNR005', 'T005', '2025-11-29', 'Chicago', 'Phoenix');
 
 -- Insert sample Admins
-INSERT INTO Admin (AdminID, Address) VALUES
-(1, '100 Admin Plaza, New York, NY'),
-(2, '200 Management Ave, Los Angeles, CA'),
-(3, '300 Executive St, Chicago, IL');
+INSERT INTO Admin (Username, AdminID) VALUES
+('admin_ny', 1),
+('admin_la', 2),
+('admin_chi', 3);
 
 -- Insert sample Admin_Station relationships
-INSERT INTO Admin_Station (AdminID, StationName) VALUES
-(1, 'Grand Central Station'),
-(1, 'Chicago Union Station'),
-(2, 'Union Station LA'),
-(2, 'Phoenix Station'),
-(3, 'Chicago Union Station'),
-(3, 'Houston Central');
+INSERT INTO Admin_Station (Username, StationName) VALUES
+('admin_ny', 'Grand Central Station'),
+('admin_ny', 'Chicago Union Station'),
+('admin_la', 'Union Station LA'),
+('admin_la', 'Phoenix Station'),
+('admin_chi', 'Chicago Union Station'),
+('admin_chi', 'Houston Central');
 
 -- Insert sample Schedules
 INSERT INTO Schedule (TrainNumber, StationName, ScheduleID, arrd_arrival_time, dept_departure_time) VALUES
@@ -203,12 +217,12 @@ INSERT INTO Schedule (TrainNumber, StationName, ScheduleID, arrd_arrival_time, d
 ('T003', 'Houston Central', 'SCH006', '18:00:00', '18:30:00');
 
 -- Insert sample Admin_Train relationships
-INSERT INTO Admin_Train (AdminID, TrainNumber) VALUES
-(1, 'T001'),
-(1, 'T004'),
-(2, 'T002'),
-(3, 'T003'),
-(3, 'T005');
+INSERT INTO Admin_Train (Username, TrainNumber) VALUES
+('admin_ny', 'T001'),
+('admin_ny', 'T004'),
+('admin_la', 'T002'),
+('admin_chi', 'T003'),
+('admin_chi', 'T005');
 
 -- Display confirmation message
 PRINT 'Database setup completed successfully!';

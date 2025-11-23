@@ -10,8 +10,8 @@ import java.util.List;
 public class UserDAO {
 
     public boolean registerUser(User user, String password) throws SQLException {
-        String userSql = "INSERT INTO [User] (Username, Name, Address, City, Age, Contact, Gender) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        String userSql = "INSERT INTO [User] (Username, Name, Address, City, Age, Contact, Gender, Role) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         String loginSql = "INSERT INTO Login (Username, Password) VALUES (?, ?)";
 
         Connection conn = null;
@@ -29,6 +29,7 @@ public class UserDAO {
                 userStmt.setObject(5, user.getAge());
                 userStmt.setString(6, user.getContact());
                 userStmt.setString(7, user.getGender());
+                userStmt.setString(8, user.getRole() != null ? user.getRole() : "passenger");
                 userStmt.executeUpdate();
 
                 loginStmt.setString(1, user.getUsername());
@@ -87,7 +88,7 @@ public class UserDAO {
 
     public boolean updateUser(User user) throws SQLException {
         String sql = "UPDATE [User] SET Name = ?, Address = ?, City = ?, Age = ?, " +
-                "Contact = ?, Gender = ? WHERE Username = ?";
+                "Contact = ?, Gender = ?, Role = ? WHERE Username = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -98,7 +99,8 @@ public class UserDAO {
             stmt.setObject(4, user.getAge());
             stmt.setString(5, user.getContact());
             stmt.setString(6, user.getGender());
-            stmt.setString(7, user.getUsername());
+            stmt.setString(7, user.getRole() != null ? user.getRole() : "passenger");
+            stmt.setString(8, user.getUsername());
 
             return stmt.executeUpdate() > 0;
         }
@@ -128,6 +130,7 @@ public class UserDAO {
         user.setAge(rs.getObject("Age", Integer.class));
         user.setContact(rs.getString("Contact"));
         user.setGender(rs.getString("Gender"));
+        user.setRole(rs.getString("Role"));
         return user;
     }
 }
