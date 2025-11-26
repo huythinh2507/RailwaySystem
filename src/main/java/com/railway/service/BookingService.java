@@ -9,7 +9,9 @@ import com.railway.util.PNRGenerator;
 
 import java.sql.SQLException;
 import java.util.List;
+import org.springframework.stereotype.Service; 
 
+@Service // FIX: ADDED @Service
 public class BookingService {
     private final BookingDAO bookingDAO;
     private final TrainDAO trainDAO;
@@ -19,8 +21,11 @@ public class BookingService {
         this.trainDAO = new TrainDAO();
     }
 
+    /**
+     * Finalized business logic for booking a ticket with a normalized data model.
+     */
     public String bookTicket(String username, String passengerName, int age, String gender,
-                             String trainNumber, String source, String destination) throws SQLException {
+                             String trainNumber) throws SQLException {
 
         Train train = trainDAO.getTrainByNumber(trainNumber);
         if (train == null) {
@@ -34,14 +39,14 @@ public class BookingService {
 
         String pnr = PNRGenerator.generatePNR();
 
-        Passenger passenger = new Passenger(pnr, passengerName, age, gender,
-                source, destination, username);
+        // Passenger model updated: only profile data is passed (route data is normalized).
+        Passenger passenger = new Passenger(pnr, passengerName, age, gender, username);
 
-        Ticket ticket = new Ticket(pnr, trainNumber, train.getDate(),
-                source, destination);
-        ticket.setAmount(train.getCost());
-
-        boolean success = bookingDAO.bookTicket(passenger, ticket);
+        // Ticket model updated: only PNR and TrainNumber are passed.
+        Ticket ticket = new Ticket(pnr, trainNumber);
+        
+        // Perform transaction via DAO
+        boolean success = bookingDAO.bookTicket(passenger, ticket); 
 
         if (success) {
             return pnr;
@@ -64,12 +69,14 @@ public class BookingService {
         return bookingDAO.cancelTicket(pnr);
     }
 
+    // --- FIX: The methods in your screenshot ---
+    
     public Ticket getTicketDetails(String pnr) throws SQLException {
-        return bookingDAO.getTicketByPNR(pnr);
+        return bookingDAO.getTicketDetails(pnr); // Correct method call
     }
 
     public List<Ticket> getUserBookings(String username) throws SQLException {
-        return bookingDAO.getTicketsByUsername(username);
+        return bookingDAO.getTicketsByUsername(username); // Correct method call
     }
 
     public List<Ticket> getAllBookings() throws SQLException {
