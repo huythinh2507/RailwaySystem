@@ -13,6 +13,10 @@ public class UserService {
         this.userDAO = new UserDAO();
     }
 
+    /**
+     * Registers a new user.
+     * Ensures username uniqueness and assigns the default 'passenger' role.
+     */
     public boolean registerUser(User user, String password) throws SQLException {
         if (user.getUsername() == null || user.getUsername().isEmpty()) {
             throw new IllegalArgumentException("Username is required!");
@@ -27,9 +31,16 @@ public class UserService {
             throw new IllegalArgumentException("Username already exists!");
         }
 
+        // CRITICAL FIX: Set the default role before registering (Passenger)
+        user.setRole("passenger"); 
+        
         return userDAO.registerUser(user, password);
     }
 
+    /**
+     * Authenticates the user.
+     * Returns the full User object, including the verified Role.
+     */
     public User login(String username, String password) throws SQLException {
         if (username == null || username.isEmpty() || password == null || password.isEmpty()) {
             throw new IllegalArgumentException("Username and password are required!");
@@ -37,6 +48,7 @@ public class UserService {
 
         User user = userDAO.login(username, password);
         if (user == null) {
+            // Note: The SecurityException is handled by the Controller mapping to HttpStatus.UNAUTHORIZED
             throw new SecurityException("Invalid username or password!");
         }
 
