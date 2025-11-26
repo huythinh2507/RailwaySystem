@@ -39,53 +39,89 @@ A comprehensive Java-based Railway Ticket Booking and Management System with pas
 ## Project Structure
 
 ```
-RailwaySystem/
-├── src/
-│   └── main/
-│       ├── java/
-│       │   └── com/
-│       │       └── railway/
-│       │           ├── model/          # Entity classes
-│       │           │   ├── User.java
-│       │           │   ├── Train.java
-│       │           │   ├── Passenger.java
-│       │           │   ├── Ticket.java
-│       │           │   ├── Feedback.java
-│       │           │   ├── Document.java
-│       │           │   ├── Station.java
-│       │           │   └── Schedule.java
-│       │           │
-│       │           ├── dao/            # Data Access Objects
-│       │           │   ├── UserDAO.java
-│       │           │   ├── TrainDAO.java
-│       │           │   ├── BookingDAO.java
-│       │           │   ├── FeedbackDAO.java
-│       │           │   └── DocumentDAO.java
-│       │           │
-│       │           ├── service/        # Business Logic Layer
-│       │           │   ├── UserService.java
-│       │           │   ├── TrainService.java
-│       │           │   ├── BookingService.java
-│       │           │   ├── FeedbackService.java
-│       │           │   └── DocumentService.java
-│       │           │
-│       │           ├── ui/             # User Interface
-│       │           │   ├── PassengerMenu.java
-│       │           │   └── AdminMenu.java
-│       │           │
-│       │           ├── util/           # Utilities
-│       │           │   ├── DatabaseConnection.java
-│       │           │   └── PNRGenerator.java
-│       │           │
-│       │           └── RailwayBookingSystem.java  # Main Application
-│       │
-│       └── resources/
-│           └── database.properties     # Database configuration
+Source Packages
 │
-├── database_setup.sql                  # SQL Server database setup script
-├── database_setup_mysql.sql            # MySQL database setup script
-├── pom.xml                            # Maven configuration
-└── README.md                          # This file
+└── com.railway
+    │
+    ├── com.railway.controller                    # Handles HTTP requests/responses
+    │   ├── BookingController.java                # Manages ticket booking endpoints
+    │   ├── FeedbackController.java               # Handles feedback submission
+    │   ├── TrainController.java                  # Manages train operations (add/edit/delete)
+    │   └── UserController.java                   # User authentication & profile management
+    │
+    ├── com.railway.dao                           # Database access layer
+    │   ├── BookingDAO.java                       # Booking database operations
+    │   ├── DocumentDAO.java                      # Document storage/retrieval
+    │   ├── FeedbackDAO.java                      # Feedback database operations
+    │   ├── TrainDAO.java                         # Train CRUD operations
+    │   └── UserDAO.java                          # User database operations
+    │
+    ├── com.railway.model                         # Entity/Domain classes
+    │   ├── Document.java                         # Document entity (ID proofs, etc.)
+    │   ├── Feedback.java                         # Feedback entity
+    │   ├── Passenger.java                        # Passenger details entity
+    │   ├── Schedule.java                         # Train schedule entity
+    │   ├── Station.java                          # Station information entity
+    │   ├── Ticket.java                           # Ticket/booking entity
+    │   ├── Train.java                            # Train details entity
+    │   └── User.java                             # User account entity
+    │
+    ├── com.railway.service                       # Business logic layer
+    │   ├── BookingService.java                   # Booking business logic
+    │   ├── DocumentService.java                  # Document processing logic
+    │   ├── FeedbackService.java                  # Feedback processing logic
+    │   ├── TrainService.java                     # Train management logic
+    │   └── UserService.java                      # User management logic
+    │
+    ├── com.railway.test                          # Test files
+    │   └── DatabaseTest.java                     # Database connection tests
+    │
+    ├── com.railway.ui                            # Console/Menu interfaces
+    │   ├── AdminMenu.java                        # Admin console menu
+    │   └── PassengerMenu.java                    # Passenger console menu
+    │
+    └── com.railway.util                          # Utility classes
+        ├── DatabaseConnection.java               # Database connection manager
+        └── PNRGenerator.java                     # Generates unique PNR numbers
+
+Test Packages
+└── <default package>
+
+Other Sources
+│
+└── src/main/resources
+    ├── <default package>
+    │   ├── application.properties                # Spring Boot configuration
+    │   └── database.properties                   # Database credentials & settings
+    │
+    ├── static                                    # Frontend HTML pages
+    │   ├── add_train.html                        # Admin: Add new train form
+    │   ├── admin.html                            # Admin login page
+    │   ├── admin_feedback.html                   # Admin: View all feedback
+    │   ├── admin_hub.html                        # Admin dashboard
+    │   ├── bookings.html                         # View booking history
+    │   ├── edit_train.html                       # Admin: Edit train details
+    │   ├── feedback_submit.html                  # Submit feedback form
+    │   ├── index.html                            # Home/landing page
+    │   ├── login.html                            # User login page
+    │   ├── passenger_dashboard.html              # Passenger main dashboard
+    │   ├── profile.html                          # User profile page
+    │   └── register.html                         # New user registration
+    │
+    ├── static.css
+    │   └── style.css                             # Global styles for all pages
+    │
+    └── static.js
+        └── app.js                                # Frontend JavaScript logic
+
+Dependencies
+Test Dependencies
+Java Dependencies
+└── JDK 24 (Default)
+
+Project Files
+├── pom.xml                                       # Maven dependencies & build config
+└── nbactions.xml                                 # NetBeans IDE actions
 ```
 
 ## Database Schema
