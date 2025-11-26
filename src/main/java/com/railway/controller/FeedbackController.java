@@ -21,131 +21,99 @@ public class FeedbackController {
         this.feedbackService = new FeedbackService();
     }
 
+    /**
+     * Handles the POST request for a passenger to submit new feedback.
+     * Endpoint: POST /api/feedback
+     */
     @PostMapping
-    public ResponseEntity<Map<String, Object>> submitFeedback(@RequestBody FeedbackRequest request) {
+    public ResponseEntity<Map<String, Object>> submitFeedback(@RequestBody Feedback request) {
         Map<String, Object> response = new HashMap<>();
         try {
-            boolean success = feedbackService.submitFeedback(
-                request.getUsername(),
-                request.getTrainNumber(),
-                request.getRating(),
-                request.getComments()
-            );
-
+            boolean success = feedbackService.submitFeedback(request);
             if (success) {
                 response.put("success", true);
-                response.put("message", "Feedback submitted successfully");
+                response.put("message", "Feedback submitted successfully.");
                 return ResponseEntity.status(HttpStatus.CREATED).body(response);
             } else {
                 response.put("success", false);
-                response.put("error", "Failed to submit feedback");
+                response.put("error", "Failed to submit feedback.");
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
             }
-        } catch (Exception e) {
+        } catch (IllegalArgumentException e) {
             response.put("success", false);
             response.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("error", "Internal server error: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
 
+    /**
+     * Handles the GET request to retrieve all feedback (Admin function).
+     * Endpoint: GET /api/feedback
+     */
     @GetMapping
     public ResponseEntity<Map<String, Object>> getAllFeedback() {
         Map<String, Object> response = new HashMap<>();
         try {
-            List<Feedback> feedbacks = feedbackService.getAllFeedback();
+            List<Feedback> feedbackList = feedbackService.getAllFeedback();
             response.put("success", true);
-            response.put("data", feedbacks);
-            response.put("count", feedbacks.size());
+            response.put("data", feedbackList);
+            response.put("count", feedbackList.size());
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("success", false);
-            response.put("error", e.getMessage());
+            response.put("error", "Failed to retrieve feedback: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
 
-    @GetMapping("/train/{trainNumber}")
-    public ResponseEntity<Map<String, Object>> getTrainFeedback(@PathVariable String trainNumber) {
+    /**
+     * Handles the PUT request for an admin to update a specific feedback entry with a response.
+     * Endpoint: PUT /api/feedback/{id}/respond
+     */
+    @PutMapping("/{id}/respond")
+    public ResponseEntity<Map<String, Object>> updateAdminResponse(
+            @PathVariable int id,
+            @RequestBody AdminResponseRequest request) {
+        
         Map<String, Object> response = new HashMap<>();
         try {
-            List<Feedback> feedbacks = feedbackService.getTrainFeedback(trainNumber);
-            double avgRating = feedbackService.getTrainAverageRating(trainNumber);
-
-            response.put("success", true);
-            response.put("data", feedbacks);
-            response.put("count", feedbacks.size());
-            response.put("averageRating", avgRating);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            response.put("success", false);
-            response.put("error", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-        }
-    }
-
-    @GetMapping("/pending")
-    public ResponseEntity<Map<String, Object>> getPendingFeedback() {
-        Map<String, Object> response = new HashMap<>();
-        try {
-            List<Feedback> feedbacks = feedbackService.getPendingFeedback();
-            response.put("success", true);
-            response.put("data", feedbacks);
-            response.put("count", feedbacks.size());
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            response.put("success", false);
-            response.put("error", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-        }
-    }
-
-    @PutMapping("/{feedbackId}/respond")
-    public ResponseEntity<Map<String, Object>> respondToFeedback(
-            @PathVariable int feedbackId,
-            @RequestBody RespondRequest request) {
-        Map<String, Object> response = new HashMap<>();
-        try {
-            boolean success = feedbackService.respondToFeedback(feedbackId, request.getAdminResponse());
+            boolean success = feedbackService.updateAdminResponse(id, request.getAdminResponse());
             if (success) {
                 response.put("success", true);
-                response.put("message", "Response added successfully");
+                response.put("message", "Admin response recorded.");
                 return ResponseEntity.ok(response);
             } else {
                 response.put("success", false);
-                response.put("error", "Failed to add response");
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+                response.put("error", "Failed to find or update feedback ID: " + id);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
             }
-        } catch (Exception e) {
+        } catch (IllegalArgumentException e) {
             response.put("success", false);
             response.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("error", "Internal server error: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
 
-    // Inner classes for request bodies
-    public static class FeedbackRequest {
-        private String username;
-        private String trainNumber;
-        private int rating;
-        private String comments;
-
-        public String getUsername() { return username; }
-        public void setUsername(String username) { this.username = username; }
-
-        public String getTrainNumber() { return trainNumber; }
-        public void setTrainNumber(String trainNumber) { this.trainNumber = trainNumber; }
-
-        public int getRating() { return rating; }
-        public void setRating(int rating) { this.rating = rating; }
-
-        public String getComments() { return comments; }
-        public void setComments(String comments) { this.comments = comments; }
-    }
-
-    public static class RespondRequest {
+    /**
+     * Inner class for the Admin Response body (used in PUT method).
+     */
+    public static class AdminResponseRequest {
         private String adminResponse;
 
-        public String getAdminResponse() { return adminResponse; }
-        public void setAdminResponse(String adminResponse) { this.adminResponse = adminResponse; }
+        public String getAdminResponse() {
+            return adminResponse;
+        }
+
+        public void setAdminResponse(String adminResponse) {
+            this.adminResponse = adminResponse;
+        }
     }
 }
