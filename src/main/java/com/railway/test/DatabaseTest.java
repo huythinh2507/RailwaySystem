@@ -179,8 +179,15 @@ public class DatabaseTest {
                     System.out.println("  Username: " + firstFeedback.getUsername());
                     System.out.println("  Train Number: " + firstFeedback.getTrainNumber());
                     System.out.println("  Rating: " + firstFeedback.getRating() + "/5");
-                    System.out.println("  Comments: " + firstFeedback.getComments());
-                    System.out.println("  Status: " + firstFeedback.getStatus());
+                    
+                    // FIX: Changed getComments() to getComment()
+                    System.out.println("  Comments: " + firstFeedback.getComment());
+                    
+                    // FIX: Replaced getStatus() with AdminResponse check
+                    String responseStatus = firstFeedback.getAdminResponse() != null && !firstFeedback.getAdminResponse().isEmpty() 
+                                            ? "Responded" : "Pending";
+                    System.out.println("  Status: " + responseStatus);
+                    
                 } else {
                     System.out.println("⚠ No feedback found in database. This is normal for a new installation.");
                     System.out.println("  Feedback table is created automatically but empty.");
