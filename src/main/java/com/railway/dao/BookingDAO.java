@@ -5,48 +5,93 @@ import com.railway.model.Ticket;
 import com.railway.util.DatabaseConnection;
 
 import java.sql.*;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.stereotype.Repository; 
 
+@Repository // FIX: ADDED @Repository
 public class BookingDAO {
 
+    // --- Helper: Map ResultSet to Ticket object ---
+    private Ticket mapResultSetToTicket(ResultSet rs) throws SQLException {
+        Ticket ticket = new Ticket();
+        ticket.setPnr(rs.getString("PNR"));
+        ticket.setTrainNumber(rs.getString("TrainNumber"));
+
+        // Map Train details
+        Date date = rs.getDate("TravelDate");
+        if (date != null) ticket.setDate(date.toLocalDate());
+
+        ticket.setSource(rs.getString("Source"));
+        ticket.setDestination(rs.getString("Destination"));
+        ticket.setAmount(rs.getBigDecimal("Cost"));
+
+        // Ticket status and username
+        ticket.setStatus(rs.getString("Status"));
+        try {
+            ticket.setUsername(rs.getString("Username"));
+        } catch (SQLException ignored) {
+            // Username may not exist in some queries
+        }
+
+        return ticket;
+    }
+
+    // --- Book a ticket (atomic transaction with seat check) ---
     public boolean bookTicket(Passenger passenger, Ticket ticket) throws SQLException {
-        String passengerSql = "INSERT INTO Passenger (PNR, PassengerName, Age, Gender, Source, Destination, Username) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?)";
-        String ticketSql = "INSERT INTO Ticket (PNR, TrainNumber, Date, Source, Destination) " +
-                "VALUES (?, ?, ?, ?, ?)";
+        String passengerSql = "INSERT INTO Passenger (PNR, PassengerName, Age, Gender, Username) VALUES (?, ?, ?, ?, ?)";
+        String ticketSql = "INSERT INTO Ticket (PNR, TrainNumber) VALUES (?, ?)";
 
         Connection conn = null;
         try {
             conn = DatabaseConnection.getConnection();
             conn.setAutoCommit(false);
 
-            try (PreparedStatement passengerStmt = conn.prepareStatement(passengerSql);
-                 PreparedStatement ticketStmt = conn.prepareStatement(ticketSql)) {
+            // 1. Check seat availability (FOR UPDATE ensures atomicity)
+            String seatSql = "SELECT TotalSeats - " +
+                    "(SELECT COUNT(*) FROM Ticket WHERE TrainNumber = ?) AS AvailableSeats " +
+                    "FROM Train WHERE TrainNumber = ? FOR UPDATE";
 
-                passengerStmt.setString(1, passenger.getPnr());
-                passengerStmt.setString(2, passenger.getPassengerName());
-                passengerStmt.setObject(3, passenger.getAge());
-                passengerStmt.setString(4, passenger.getGender());
-                passengerStmt.setString(5, passenger.getSource());
-                passengerStmt.setString(6, passenger.getDestination());
-                passengerStmt.setString(7, passenger.getUsername());
-                passengerStmt.executeUpdate();
-
-                ticketStmt.setString(1, ticket.getPnr());
-                ticketStmt.setString(2, ticket.getTrainNumber());
-                ticketStmt.setDate(3, Date.valueOf(ticket.getDate()));
-                ticketStmt.setString(4, ticket.getSource());
-                ticketStmt.setString(5, ticket.getDestination());
-                ticketStmt.executeUpdate();
-
-                conn.commit();
-                return true;
-            } catch (SQLException e) {
-                conn.rollback();
-                throw e;
+            int availableSeats;
+            try (PreparedStatement seatStmt = conn.prepareStatement(seatSql)) {
+                seatStmt.setString(1, ticket.getTrainNumber());
+                seatStmt.setString(2, ticket.getTrainNumber());
+                try (ResultSet rs = seatStmt.executeQuery()) {
+                    if (rs.next()) {
+                        availableSeats = rs.getInt("AvailableSeats");
+                    } else {
+                        throw new SQLException("Train not found!");
+                    }
+                }
             }
+
+            if (availableSeats <= 0) {
+                throw new IllegalStateException("No seats available for this train!");
+            }
+
+            // 2. Insert Passenger
+            try (PreparedStatement ps = conn.prepareStatement(passengerSql)) {
+                ps.setString(1, passenger.getPnr());
+                ps.setString(2, passenger.getPassengerName());
+                ps.setObject(3, passenger.getAge());
+                ps.setString(4, passenger.getGender());
+                ps.setString(5, passenger.getUsername());
+                ps.executeUpdate();
+            }
+
+            // 3. Insert Ticket
+            try (PreparedStatement ps = conn.prepareStatement(ticketSql)) {
+                ps.setString(1, ticket.getPnr());
+                ps.setString(2, ticket.getTrainNumber());
+                ps.executeUpdate();
+            }
+
+            conn.commit();
+            return true;
+
+        } catch (SQLException | IllegalStateException e) {
+            if (conn != null) conn.rollback();
+            throw e;
         } finally {
             if (conn != null) {
                 conn.setAutoCommit(true);
@@ -55,13 +100,12 @@ public class BookingDAO {
         }
     }
 
+    // --- Cancel a ticket (atomic) ---
     public boolean cancelTicket(String pnr) throws SQLException {
         String deleteTicketSql = "DELETE FROM Ticket WHERE PNR = ?";
         String deletePassengerSql = "DELETE FROM Passenger WHERE PNR = ?";
 
-        Connection conn = null;
-        try {
-            conn = DatabaseConnection.getConnection();
+        try (Connection conn = DatabaseConnection.getConnection()) {
             conn.setAutoCommit(false);
 
             try (PreparedStatement ticketStmt = conn.prepareStatement(deleteTicketSql);
@@ -75,83 +119,77 @@ public class BookingDAO {
 
                 conn.commit();
                 return true;
+
             } catch (SQLException e) {
                 conn.rollback();
                 throw e;
-            }
-        } finally {
-            if (conn != null) {
+            } finally {
                 conn.setAutoCommit(true);
-                DatabaseConnection.closeConnection(conn);
             }
         }
     }
 
-    public Ticket getTicketByPNR(String pnr) throws SQLException {
-        String sql = "SELECT t.*, tr.TrainName, tr.Cost FROM Ticket t " +
-                "INNER JOIN Train tr ON t.TrainNumber = tr.TrainNumber WHERE t.PNR = ?";
+    // --- Retrieve ticket details by PNR ---
+    public Ticket getTicketDetails(String pnr) throws SQLException {
+        String sql = "SELECT t.PNR, t.TrainNumber, t.Status, tr.Source, tr.Destination, " +
+                "tr.Date as TravelDate, tr.Cost, p.Username " +
+                "FROM Ticket t " +
+                "INNER JOIN Passenger p ON t.PNR = p.PNR " +
+                "INNER JOIN Train tr ON t.TrainNumber = tr.TrainNumber " +
+                "WHERE t.PNR = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, pnr);
-
             try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    Ticket ticket = new Ticket();
-                    ticket.setPnr(rs.getString("PNR"));
-                    ticket.setTrainNumber(rs.getString("TrainNumber"));
-
-                    Date date = rs.getDate("Date");
-                    if (date != null) {
-                        ticket.setDate(date.toLocalDate());
-                    }
-
-                    ticket.setSource(rs.getString("Source"));
-                    ticket.setDestination(rs.getString("Destination"));
-                    ticket.setAmount(rs.getBigDecimal("Cost"));
-                    ticket.setStatus("CONFIRMED");
-                    return ticket;
-                }
+                if (rs.next()) return mapResultSetToTicket(rs);
             }
         }
         return null;
     }
 
+    // --- Retrieve all bookings ---
+    public List<Ticket> getAllBookings() throws SQLException {
+        List<Ticket> tickets = new ArrayList<>();
+        String sql = "SELECT t.PNR, t.TrainNumber, t.Status, tr.Source, tr.Destination, " +
+                "tr.Date as TravelDate, tr.Cost, p.Username " +
+                "FROM Ticket t " +
+                "INNER JOIN Passenger p ON t.PNR = p.PNR " +
+                "INNER JOIN Train tr ON t.TrainNumber = tr.TrainNumber " +
+                "ORDER BY tr.Date DESC";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) tickets.add(mapResultSetToTicket(rs));
+        }
+        return tickets;
+    }
+
+    // --- Retrieve tickets by username ---
     public List<Ticket> getTicketsByUsername(String username) throws SQLException {
         List<Ticket> tickets = new ArrayList<>();
-        String sql = "SELECT t.*, tr.TrainName, tr.Cost FROM Ticket t " +
-                "INNER JOIN Train tr ON t.TrainNumber = tr.TrainNumber " +
+        String sql = "SELECT t.PNR, t.TrainNumber, t.Status, tr.Source, tr.Destination, " +
+                "tr.Date as TravelDate, tr.Cost, p.Username " +
+                "FROM Ticket t " +
                 "INNER JOIN Passenger p ON t.PNR = p.PNR " +
-                "WHERE p.Username = ? ORDER BY t.Date DESC";
+                "INNER JOIN Train tr ON t.TrainNumber = tr.TrainNumber " +
+                "WHERE p.Username = ? ORDER BY tr.Date DESC";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, username);
-
             try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    Ticket ticket = new Ticket();
-                    ticket.setPnr(rs.getString("PNR"));
-                    ticket.setTrainNumber(rs.getString("TrainNumber"));
-
-                    Date date = rs.getDate("Date");
-                    if (date != null) {
-                        ticket.setDate(date.toLocalDate());
-                    }
-
-                    ticket.setSource(rs.getString("Source"));
-                    ticket.setDestination(rs.getString("Destination"));
-                    ticket.setAmount(rs.getBigDecimal("Cost"));
-                    ticket.setStatus("CONFIRMED");
-                    tickets.add(ticket);
-                }
+                while (rs.next()) tickets.add(mapResultSetToTicket(rs));
             }
         }
         return tickets;
     }
 
+    // --- Retrieve passenger details by PNR ---
     public Passenger getPassengerByPNR(String pnr) throws SQLException {
         String sql = "SELECT * FROM Passenger WHERE PNR = ?";
 
@@ -159,7 +197,6 @@ public class BookingDAO {
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, pnr);
-
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     Passenger passenger = new Passenger();
@@ -167,44 +204,11 @@ public class BookingDAO {
                     passenger.setPassengerName(rs.getString("PassengerName"));
                     passenger.setAge(rs.getObject("Age", Integer.class));
                     passenger.setGender(rs.getString("Gender"));
-                    passenger.setSource(rs.getString("Source"));
-                    passenger.setDestination(rs.getString("Destination"));
                     passenger.setUsername(rs.getString("Username"));
                     return passenger;
                 }
             }
         }
         return null;
-    }
-
-    public List<Ticket> getAllBookings() throws SQLException {
-        List<Ticket> tickets = new ArrayList<>();
-        String sql = "SELECT t.*, tr.TrainName, tr.Cost, p.PassengerName FROM Ticket t " +
-                "INNER JOIN Train tr ON t.TrainNumber = tr.TrainNumber " +
-                "INNER JOIN Passenger p ON t.PNR = p.PNR " +
-                "ORDER BY t.Date DESC";
-
-        try (Connection conn = DatabaseConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-
-            while (rs.next()) {
-                Ticket ticket = new Ticket();
-                ticket.setPnr(rs.getString("PNR"));
-                ticket.setTrainNumber(rs.getString("TrainNumber"));
-
-                Date date = rs.getDate("Date");
-                if (date != null) {
-                    ticket.setDate(date.toLocalDate());
-                }
-
-                ticket.setSource(rs.getString("Source"));
-                ticket.setDestination(rs.getString("Destination"));
-                ticket.setAmount(rs.getBigDecimal("Cost"));
-                ticket.setStatus("CONFIRMED");
-                tickets.add(ticket);
-            }
-        }
-        return tickets;
     }
 }
