@@ -7,7 +7,9 @@ import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.stereotype.Repository; 
 
+@Repository // FIX: ADDED @Repository
 public class DocumentDAO {
 
     public DocumentDAO() {
