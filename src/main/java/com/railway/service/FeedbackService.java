@@ -1,58 +1,65 @@
 package com.railway.service;
 
 import com.railway.dao.FeedbackDAO;
+import com.railway.dao.TrainDAO;
 import com.railway.model.Feedback;
+import com.railway.model.Train;
 
 import java.sql.SQLException;
-import java.time.LocalDateTime;
 import java.util.List;
 
 public class FeedbackService {
     private final FeedbackDAO feedbackDAO;
+    private final TrainDAO trainDAO;
 
     public FeedbackService() {
         this.feedbackDAO = new FeedbackDAO();
+        this.trainDAO = new TrainDAO();
     }
 
-    public boolean submitFeedback(String username, String trainNumber, int rating, String comments) throws SQLException {
-        if (rating < 1 || rating > 5) {
-            throw new IllegalArgumentException("Rating must be between 1 and 5!");
+    /**
+     * Handles the business logic for a passenger submitting new feedback.
+     */
+    public boolean submitFeedback(Feedback feedback) throws SQLException {
+        // Basic validation
+        if (feedback.getRating() < 1 || feedback.getRating() > 5) {
+            throw new IllegalArgumentException("Rating must be between 1 and 5.");
+        }
+        if (feedback.getComment() == null || feedback.getComment().trim().isEmpty()) {
+            throw new IllegalArgumentException("Comment cannot be empty.");
         }
 
-        Feedback feedback = new Feedback(username, trainNumber, rating, comments);
-        return feedbackDAO.addFeedback(feedback);
-    }
-
-    public boolean respondToFeedback(int feedbackId, String adminResponse) throws SQLException {
-        Feedback feedback = feedbackDAO.getFeedbackById(feedbackId);
-        if (feedback == null) {
-            throw new IllegalArgumentException("Feedback not found!");
+        // Check if the train exists before recording feedback
+        Train train = trainDAO.getTrainByNumber(feedback.getTrainNumber());
+        if (train == null) {
+            throw new IllegalArgumentException("Train not found for this feedback.");
         }
 
-        return feedbackDAO.updateFeedbackResponse(feedbackId, adminResponse);
+        return feedbackDAO.submitFeedback(feedback);
     }
 
-    public List<Feedback> getUserFeedback(String username) throws SQLException {
-        return feedbackDAO.getFeedbackByUsername(username);
-    }
-
+    /**
+     * Retrieves all submitted feedback for the administrator view.
+     */
     public List<Feedback> getAllFeedback() throws SQLException {
         return feedbackDAO.getAllFeedback();
     }
-
+    
+    /**
+     * NEW FIX: Retrieves only feedback where AdminResponse is NULL or empty.
+     */
     public List<Feedback> getPendingFeedback() throws SQLException {
+        // NOTE: Assumes FeedbackDAO has a method to retrieve pending feedback.
         return feedbackDAO.getPendingFeedback();
     }
 
-    public double getTrainAverageRating(String trainNumber) throws SQLException {
-        return feedbackDAO.getAverageRatingForTrain(trainNumber);
-    }
-
-    public Feedback getFeedbackById(int feedbackId) throws SQLException {
-        return feedbackDAO.getFeedbackById(feedbackId);
-    }
-
-    public List<Feedback> getTrainFeedback(String trainNumber) throws SQLException {
-        return feedbackDAO.getFeedbackByTrainNumber(trainNumber);
+    /**
+     * Allows an administrator to respond to a specific feedback entry.
+     */
+    public boolean updateAdminResponse(int feedbackId, String response) throws SQLException {
+        if (response == null || response.trim().isEmpty()) {
+            throw new IllegalArgumentException("Admin response cannot be empty.");
+        }
+        return feedbackDAO.updateAdminResponse(feedbackId, response);
     }
 }
