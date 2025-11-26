@@ -7,79 +7,38 @@ public class Passenger {
     private String passengerName;
     private Integer age;
     private String gender;
-    private String source;
-    private String destination;
+    // Removed Source and Destination (Normalized)
     private String username;
 
     public Passenger() {
     }
 
-    public Passenger(String pnr, String passengerName, Integer age, String gender,
-                     String source, String destination, String username) {
+    // Constructor updated for normalized fields (Source/Destination removed)
+    public Passenger(String pnr, String passengerName, Integer age, String gender, String username) {
         this.pnr = pnr;
         this.passengerName = passengerName;
         this.age = age;
         this.gender = gender;
-        this.source = source;
-        this.destination = destination;
         this.username = username;
     }
 
-    public String getPnr() {
-        return pnr;
-    }
+    // --- Getters and Setters ---
+    public String getPnr() { return pnr; }
+    public void setPnr(String pnr) { this.pnr = pnr; }
 
-    public void setPnr(String pnr) {
-        this.pnr = pnr;
-    }
+    public String getPassengerName() { return passengerName; }
+    public void setPassengerName(String passengerName) { this.passengerName = passengerName; }
 
-    public String getPassengerName() {
-        return passengerName;
-    }
+    public Integer getAge() { return age; }
+    public void setAge(Integer age) { this.age = age; }
 
-    public void setPassengerName(String passengerName) {
-        this.passengerName = passengerName;
-    }
+    public String getGender() { return gender; }
+    public void setGender(String gender) { this.gender = gender; }
 
-    public Integer getAge() {
-        return age;
-    }
-
-    public void setAge(Integer age) {
-        this.age = age;
-    }
-
-    public String getGender() {
-        return gender;
-    }
-
-    public void setGender(String gender) {
-        this.gender = gender;
-    }
-
-    public String getSource() {
-        return source;
-    }
-
-    public void setSource(String source) {
-        this.source = source;
-    }
-
-    public String getDestination() {
-        return destination;
-    }
-
-    public void setDestination(String destination) {
-        this.destination = destination;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
+    
+    // NOTE: Removed getSource(), getDestination(), setSource(), setDestination()
 
     @Override
     public boolean equals(Object o) {
@@ -100,9 +59,8 @@ public class Passenger {
                 "pnr='" + pnr + '\'' +
                 ", passengerName='" + passengerName + '\'' +
                 ", age=" + age +
-                ", gender='" + gender + '\'' +
-                ", source='" + source + '\'' +
-                ", destination='" + destination + '\'' +
+                ", gender=" + gender +
+                ", username='" + username + '\'' +
                 '}';
     }
 }
