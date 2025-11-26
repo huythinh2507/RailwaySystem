@@ -8,91 +8,60 @@ import java.util.Objects;
 public class Ticket {
     private String pnr;
     private String trainNumber;
-    private LocalDate date;
-    private String source;
-    private String destination;
+    
+    // --- Fields retrieved via JOINs (Normalization) ---
+    private LocalDate date; 
+    private String source; 
+    private String destination; 
+    private BigDecimal amount; 
+    
+    // --- Fields stored directly on Ticket ---
     private String status;
-    private BigDecimal amount;
     private LocalDateTime bookingDate;
+    private String username; // Added for secure filtering
 
     public Ticket() {
     }
 
-    public Ticket(String pnr, String trainNumber, LocalDate date,
-                  String source, String destination) {
+    // Constructor simplified to reflect only necessary inputs for a new ticket
+    public Ticket(String pnr, String trainNumber) { 
         this.pnr = pnr;
         this.trainNumber = trainNumber;
-        this.date = date;
-        this.source = source;
-        this.destination = destination;
         this.status = "CONFIRMED";
         this.bookingDate = LocalDateTime.now();
     }
+    
+    // --- Getters and Setters ---
+    
+    public String getPnr() { return pnr; }
+    public void setPnr(String pnr) { this.pnr = pnr; }
 
-    public String getPnr() {
-        return pnr;
-    }
+    public String getTrainNumber() { return trainNumber; }
+    public void setTrainNumber(String trainNumber) { this.trainNumber = trainNumber; }
 
-    public void setPnr(String pnr) {
-        this.pnr = pnr;
-    }
+    // --- Accessor methods for Normalized Data ---
+    public LocalDate getDate() { return date; }
+    public void setDate(LocalDate date) { this.date = date; }
 
-    public String getTrainNumber() {
-        return trainNumber;
-    }
+    public String getSource() { return source; }
+    public void setSource(String source) { this.source = source; }
 
-    public void setTrainNumber(String trainNumber) {
-        this.trainNumber = trainNumber;
-    }
+    public String getDestination() { return destination; }
+    public void setDestination(String destination) { this.destination = destination; }
 
-    public LocalDate getDate() {
-        return date;
-    }
+    public BigDecimal getAmount() { return amount; }
+    public void setAmount(BigDecimal amount) { this.amount = amount; }
+    
+    // --- Direct Ticket Data ---
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 
-    public void setDate(LocalDate date) {
-        this.date = date;
-    }
+    public LocalDateTime getBookingDate() { return bookingDate; }
+    public void setBookingDate(LocalDateTime bookingDate) { this.bookingDate = bookingDate; }
 
-    public String getSource() {
-        return source;
-    }
-
-    public void setSource(String source) {
-        this.source = source;
-    }
-
-    public String getDestination() {
-        return destination;
-    }
-
-    public void setDestination(String destination) {
-        this.destination = destination;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public BigDecimal getAmount() {
-        return amount;
-    }
-
-    public void setAmount(BigDecimal amount) {
-        this.amount = amount;
-    }
-
-    public LocalDateTime getBookingDate() {
-        return bookingDate;
-    }
-
-    public void setBookingDate(LocalDateTime bookingDate) {
-        this.bookingDate = bookingDate;
-    }
-
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
+    
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -117,6 +86,7 @@ public class Ticket {
                 ", destination='" + destination + '\'' +
                 ", status='" + status + '\'' +
                 ", amount=" + amount +
+                ", username='" + username + '\'' +
                 '}';
     }
 }
