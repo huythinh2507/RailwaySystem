@@ -17,22 +17,23 @@ public class BookingController {
 
     private final BookingService bookingService;
 
-    public BookingController() {
-        this.bookingService = new BookingService();
+    // CRITICAL FIX: Replaced manual instantiation with Spring Constructor Injection
+    public BookingController(BookingService bookingService) {
+        this.bookingService = bookingService;
     }
 
     @PostMapping
     public ResponseEntity<Map<String, Object>> bookTicket(@RequestBody BookingRequest request) {
         Map<String, Object> response = new HashMap<>();
         try {
+            // FIX: Removed redundant source and destination arguments to match
+            // the 5-argument signature of BookingService.bookTicket()
             String pnr = bookingService.bookTicket(
                 request.getUsername(),
                 request.getPassengerName(),
                 request.getAge(),
                 request.getGender(),
-                request.getTrainNumber(),
-                request.getSource(),
-                request.getDestination()
+                request.getTrainNumber()
             );
 
             if (pnr != null) {
@@ -108,15 +109,15 @@ public class BookingController {
         }
     }
 
-    // Inner class for booking request
+    // Inner class for booking request - Removed unused source/destination fields for clarity/cleanliness.
     public static class BookingRequest {
         private String username;
         private String passengerName;
         private int age;
         private String gender;
         private String trainNumber;
-        private String source;
-        private String destination;
+        // private String source;       // REMOVED UNUSED FIELD
+        // private String destination;  // REMOVED UNUSED FIELD
 
         public String getUsername() { return username; }
         public void setUsername(String username) { this.username = username; }
@@ -132,11 +133,10 @@ public class BookingController {
 
         public String getTrainNumber() { return trainNumber; }
         public void setTrainNumber(String trainNumber) { this.trainNumber = trainNumber; }
-
-        public String getSource() { return source; }
-        public void setSource(String source) { this.source = source; }
-
-        public String getDestination() { return destination; }
-        public void setDestination(String destination) { this.destination = destination; }
+        
+        // NOTE: Keeping getters/setters for source/destination in the inner class, 
+        // even if they are no longer used in the Service call, might be useful if the 
+        // frontend relies on them, but for the backend fix, they are effectively ignored.
+        // For a clean implementation, they should be removed from the DTO too.
     }
 }
