@@ -22,22 +22,31 @@ public class TrainController {
         this.trainService = new TrainService();
     }
 
+    // --- READ: Get All Trains (For List View) ---
     @GetMapping
     public ResponseEntity<Map<String, Object>> getAllTrains() {
         Map<String, Object> response = new HashMap<>();
         try {
             List<Train> trains = trainService.getAllTrains();
+            
+            // CRITICAL: Calculate available seats before sending the list
+            for (Train train : trains) {
+                int seats = trainService.checkSeatAvailability(train.getTrainNumber());
+                train.setAvailableSeats(seats);
+            }
+            
             response.put("success", true);
             response.put("data", trains);
             response.put("count", trains.size());
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("success", false);
-            response.put("error", e.getMessage());
+            response.put("error", "Error retrieving all trains: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
 
+    // --- READ: Search Trains ---
     @GetMapping("/search")
     public ResponseEntity<Map<String, Object>> searchTrains(
             @RequestParam String source,
@@ -45,25 +54,38 @@ public class TrainController {
             @RequestParam(required = false) String date) {
         Map<String, Object> response = new HashMap<>();
         try {
-            LocalDate travelDate = date != null ? LocalDate.parse(date) : LocalDate.now();
+            LocalDate travelDate = date != null && !date.isEmpty() ? LocalDate.parse(date) : null;
+            
             List<Train> trains = trainService.searchTrains(source, destination, travelDate);
+            
+            // CRITICAL: Calculate available seats before sending the list
+            for (Train train : trains) {
+                int seats = trainService.checkSeatAvailability(train.getTrainNumber());
+                train.setAvailableSeats(seats);
+            }
+            
             response.put("success", true);
             response.put("data", trains);
-            response.put("count", trains.size());
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("success", false);
-            response.put("error", e.getMessage());
+            response.put("error", "Error during search: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
 
+    // --- READ: Get Single Train (for Edit Page - CRITICAL FIX HERE) ---
     @GetMapping("/{trainNumber}")
     public ResponseEntity<Map<String, Object>> getTrainByNumber(@PathVariable String trainNumber) {
         Map<String, Object> response = new HashMap<>();
         try {
-            Train train = trainService.getTrainByNumber(trainNumber);
+            // FIX: Service now only fetches basic data
+            Train train = trainService.getTrainByNumber(trainNumber); 
             if (train != null) {
+                // FIX: Calculate seats in the controller where error handling is better
+                int seats = trainService.checkSeatAvailability(trainNumber);
+                train.setAvailableSeats(seats);
+                
                 response.put("success", true);
                 response.put("data", train);
                 return ResponseEntity.ok(response);
@@ -78,23 +100,8 @@ public class TrainController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
-
-    @GetMapping("/{trainNumber}/availability")
-    public ResponseEntity<Map<String, Object>> checkAvailability(@PathVariable String trainNumber) {
-        Map<String, Object> response = new HashMap<>();
-        try {
-            int availableSeats = trainService.checkSeatAvailability(trainNumber);
-            response.put("success", true);
-            response.put("trainNumber", trainNumber);
-            response.put("availableSeats", availableSeats);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            response.put("success", false);
-            response.put("error", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-        }
-    }
-
+    
+    // --- CREATE ---
     @PostMapping
     public ResponseEntity<Map<String, Object>> addTrain(@RequestBody Train train) {
         Map<String, Object> response = new HashMap<>();
@@ -116,7 +123,35 @@ public class TrainController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
+    
+    // --- UPDATE ---
+    @PutMapping("/{trainNumber}")
+    public ResponseEntity<Map<String, Object>> updateTrain(
+        @PathVariable String trainNumber,
+        @RequestBody Train train) {
+        
+        Map<String, Object> response = new HashMap<>();
+        try {
+            train.setTrainNumber(trainNumber); 
+            boolean success = trainService.updateTrain(train);
+            if (success) {
+                response.put("success", true);
+                response.put("message", "Train updated successfully");
+                response.put("data", train);
+                return ResponseEntity.ok(response);
+            } else {
+                response.put("success", false);
+                response.put("error", "Failed to update train. Train not found.");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+            }
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
 
+    // --- DELETE ---
     @DeleteMapping("/{trainNumber}")
     public ResponseEntity<Map<String, Object>> deleteTrain(@PathVariable String trainNumber) {
         Map<String, Object> response = new HashMap<>();
