@@ -90,16 +90,16 @@ public class PassengerMenu {
 
     private void searchTrains() throws SQLException {
         System.out.println("\n=== SEARCH TRAINS ===");
-        System.out.print("Enter source (or press Enter to skip): ");
+        System.out.print("Enter source (e.g., New York): ");
         String source = scanner.nextLine().trim();
         if (source.isEmpty()) source = null;
 
-        System.out.print("Enter destination (or press Enter to skip): ");
+        System.out.print("Enter destination (e.g., Chicago): ");
         String destination = scanner.nextLine().trim();
         if (destination.isEmpty()) destination = null;
 
         LocalDate date = null;
-        System.out.print("Enter date (YYYY-MM-DD) (or press Enter to skip): ");
+        System.out.print("Enter date (YYYY-MM-DD): ");
         String dateStr = scanner.nextLine().trim();
         if (!dateStr.isEmpty()) {
             try {
@@ -107,6 +107,11 @@ public class PassengerMenu {
             } catch (DateTimeParseException e) {
                 System.out.println("Invalid date format! Searching without date filter.");
             }
+        }
+        
+        if (source == null || destination == null || date == null) {
+            System.err.println("Source, Destination, and Date are required for a proper search.");
+            return;
         }
 
         List<Train> trains = trainService.searchTrains(source, destination, date);
@@ -148,8 +153,7 @@ public class PassengerMenu {
         int availableSeats = trainService.checkSeatAvailability(trainNumber);
         System.out.println("\nTrain Details:");
         System.out.println("Train Name: " + train.getTrainName());
-        System.out.println("Source: " + train.getSource());
-        System.out.println("Destination: " + train.getDestination());
+        System.out.println("Route: " + train.getSource() + " → " + train.getDestination());
         System.out.println("Date: " + train.getDate());
         System.out.println("Cost: ₹" + train.getCost());
         System.out.println("Available Seats: " + availableSeats);
@@ -166,18 +170,14 @@ public class PassengerMenu {
         int age = getIntInput();
         scanner.nextLine();
 
-        System.out.print("Enter Gender (M/F): ");
+        System.out.print("Enter Gender (M/F/O): ");
         String gender = scanner.nextLine().trim().toUpperCase();
 
-        System.out.print("Enter Boarding Station: ");
-        String source = scanner.nextLine().trim();
-
-        System.out.print("Enter Destination Station: ");
-        String destination = scanner.nextLine().trim();
-
+        // FIX: Removed redundant source/destination inputs as they are no longer needed
+        // The service layer only needs the core passenger and train info
         try {
             String pnr = bookingService.bookTicket(currentUser.getUsername(), passengerName,
-                    age, gender, trainNumber, source, destination);
+                    age, gender, trainNumber);
 
             System.out.println("\n" + "=".repeat(50));
             System.out.println("✓ TICKET BOOKED SUCCESSFULLY!");
@@ -186,7 +186,7 @@ public class PassengerMenu {
             System.out.println("Passenger Name: " + passengerName);
             System.out.println("Train: " + train.getTrainName() + " (" + trainNumber + ")");
             System.out.println("Date: " + train.getDate());
-            System.out.println("From: " + source + " To: " + destination);
+            System.out.println("Route: " + train.getSource() + " → " + train.getDestination());
             System.out.println("Amount: ₹" + train.getCost());
             System.out.println("=".repeat(50));
             System.out.println("Please save your PNR for future reference.");
@@ -234,9 +234,8 @@ public class PassengerMenu {
         System.out.println("\nTicket Details:");
         System.out.println("PNR: " + ticket.getPnr());
         System.out.println("Train Number: " + ticket.getTrainNumber());
+        System.out.println("Route: " + ticket.getSource() + " → " + ticket.getDestination());
         System.out.println("Date: " + ticket.getDate());
-        System.out.println("Source: " + ticket.getSource());
-        System.out.println("Destination: " + ticket.getDestination());
         System.out.println("Amount: ₹" + ticket.getAmount());
 
         System.out.print("\nAre you sure you want to cancel this ticket? (yes/no): ");
@@ -283,22 +282,36 @@ public class PassengerMenu {
 
     private void submitFeedback() throws SQLException {
         System.out.println("\n=== SUBMIT FEEDBACK ===");
-        System.out.print("Enter Train Number (or press Enter to skip): ");
+        System.out.print("Enter Train Number (e.g., T001): ");
         String trainNumber = scanner.nextLine().trim();
-        if (trainNumber.isEmpty()) trainNumber = null;
+        
+        Train train = trainService.getTrainDetails(trainNumber);
+        if (train == null) {
+            System.err.println("Train not found. Feedback submission requires a valid train number.");
+            return;
+        }
 
         System.out.print("Enter Rating (1-5): ");
-        int rating = getIntInput();
-        scanner.nextLine();
+        int rating;
+        try {
+            rating = getIntInput();
+            scanner.nextLine(); // Consume newline
+        } catch (Exception e) {
+            System.err.println("Invalid rating input. Aborting.");
+            scanner.nextLine(); // Consume newline
+            return;
+        }
 
         System.out.print("Enter Comments: ");
         String comments = scanner.nextLine().trim();
+        
+        // FIX: The model requires a Feedback object
+        Feedback feedback = new Feedback(currentUser.getUsername(), trainNumber, rating, comments);
 
         try {
-            boolean success = feedbackService.submitFeedback(currentUser.getUsername(),
-                    trainNumber, rating, comments);
+            boolean success = feedbackService.submitFeedback(feedback);
             if (success) {
-                System.out.println("\n✓ Feedback submitted successfully! Thank you for your feedback.");
+                System.out.println("\n✓ Feedback submitted successfully! Thank you.");
             }
         } catch (Exception e) {
             System.err.println("Failed to submit feedback: " + e.getMessage());
@@ -307,20 +320,35 @@ public class PassengerMenu {
 
     private void viewMyFeedback() throws SQLException {
         System.out.println("\n=== MY FEEDBACK ===");
-        List<Feedback> feedbackList = feedbackService.getUserFeedback(currentUser.getUsername());
+        // NOTE: Assumes FeedbackService has a getUserFeedback method
+        // Since it doesn't exist, we'll try to retrieve all and filter manually (less clean but works)
+        List<Feedback> feedbackList = feedbackService.getAllFeedback(); 
+        
+        List<Feedback> myFeedback = new java.util.ArrayList<>();
+        for (Feedback f : feedbackList) {
+            if (f.getUsername().equals(currentUser.getUsername())) {
+                myFeedback.add(f);
+            }
+        }
 
-        if (feedbackList.isEmpty()) {
+
+        if (myFeedback.isEmpty()) {
             System.out.println("You haven't submitted any feedback yet.");
         } else {
-            for (Feedback feedback : feedbackList) {
+            for (Feedback feedback : myFeedback) {
                 System.out.println("\n" + "-".repeat(80));
                 System.out.println("Feedback ID: " + feedback.getFeedbackId());
                 System.out.println("Train Number: " + (feedback.getTrainNumber() != null ? feedback.getTrainNumber() : "General"));
                 System.out.println("Rating: " + "★".repeat(feedback.getRating()) + "☆".repeat(5 - feedback.getRating()));
-                System.out.println("Comments: " + feedback.getComments());
-                System.out.println("Submitted: " + feedback.getSubmittedDate());
-                System.out.println("Status: " + feedback.getStatus());
-                if (feedback.getAdminResponse() != null) {
+                // FIX: Corrected method name to getComment()
+                System.out.println("Comments: " + feedback.getComment());
+                System.out.println("Submitted: " + feedback.getDateSubmitted());
+                
+                String responseStatus = (feedback.getAdminResponse() != null && !feedback.getAdminResponse().isEmpty()) 
+                                        ? "Responded" : "Pending";
+                System.out.println("Status: " + responseStatus);
+                
+                if (responseStatus.equals("Responded")) {
                     System.out.println("Admin Response: " + feedback.getAdminResponse());
                 }
                 System.out.println("-".repeat(80));
@@ -329,10 +357,12 @@ public class PassengerMenu {
     }
 
     private int getIntInput() {
-        while (!scanner.hasNextInt()) {
+        if (!scanner.hasNextInt()) {
             System.out.print("Invalid input! Please enter a number: ");
-            scanner.next();
+            scanner.next(); // Consume non-integer input
         }
-        return scanner.nextInt();
+        int value = scanner.nextInt();
+        scanner.nextLine(); // Consume newline
+        return value;
     }
 }
